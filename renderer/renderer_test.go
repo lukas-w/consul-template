@@ -22,11 +22,15 @@ func TestAtomicWrite(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		err = outFile.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if err := os.RemoveAll(outDir); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := AtomicWrite(outFile.Name(), true, nil, 0644, false); err != nil {
+		if err := AtomicWrite(outFile.Name(), true, nil, FilePermsInput{Mode: 0644}, false); err != nil {
 			t.Fatal(err)
 		}
 
@@ -45,13 +49,19 @@ func TestAtomicWrite(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		os.Chmod(outFile.Name(), 0600)
 
-		if err := AtomicWrite(outFile.Name(), true, nil, 0, false); err != nil {
+		if err := Chmod(outFile.Name(), 0600); err != nil {
+			t.Fatal(err)
+		}
+		if err = outFile.Close(); err != nil {
 			t.Fatal(err)
 		}
 
-		stat, err := os.Stat(outFile.Name())
+		if err := AtomicWrite(outFile.Name(), true, nil, FilePermsInput{Mode: 0}, false); err != nil {
+			t.Fatal(err)
+		}
+
+		stat, err := Stat(outFile.Name())
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -72,7 +82,7 @@ func TestAtomicWrite(t *testing.T) {
 
 		// Try AtomicWrite to a file that doesn't exist yet
 		file := filepath.Join(outDir, "nope/not/it/create")
-		if err := AtomicWrite(file, true, nil, 0644, false); err != nil {
+		if err := AtomicWrite(file, true, nil, FilePermsInput{Mode: 0644}, false); err != nil {
 			t.Fatal(err)
 		}
 
@@ -91,7 +101,7 @@ func TestAtomicWrite(t *testing.T) {
 
 		// Try AtomicWrite to a file that doesn't exist yet
 		file := filepath.Join(outDir, "nope/not/it/nope-no-create")
-		if err := AtomicWrite(file, false, nil, 0644, false); err != ErrNoParentDir {
+		if err := AtomicWrite(file, false, nil, FilePermsInput{Mode: 0644}, false); err != ErrNoParentDir {
 			t.Fatalf("expected %q to be %q", err, ErrNoParentDir)
 		}
 	})
@@ -106,14 +116,17 @@ func TestAtomicWrite(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if err := os.Chmod(outFile.Name(), 0600); err != nil {
+		if err := Chmod(outFile.Name(), 0600); err != nil {
 			t.Fatal(err)
 		}
 		if _, err := outFile.Write([]byte("before")); err != nil {
 			t.Fatal(err)
 		}
+		if err := outFile.Close(); err != nil {
+			t.Fatal(err)
+		}
 
-		if err := AtomicWrite(outFile.Name(), true, []byte("after"), 0644, true); err != nil {
+		if err := AtomicWrite(outFile.Name(), true, []byte("after"), FilePermsInput{Mode: 0644}, true); err != nil {
 			t.Fatal(err)
 		}
 
@@ -125,11 +138,11 @@ func TestAtomicWrite(t *testing.T) {
 			t.Fatalf("expected %q to be %q", f, []byte("before"))
 		}
 
-		if stat, err := os.Stat(outFile.Name() + ".bak"); err != nil {
+		if stat, err := Stat(outFile.Name() + ".bak"); err != nil {
 			t.Fatal(err)
 		} else {
 			if stat.Mode() != 0600 {
-				t.Fatalf("expected %d to be %d", stat.Mode(), 0600)
+				t.Fatalf("expected %q to be %q", stat.Mode(), os.FileMode(0600))
 			}
 		}
 	})
@@ -144,11 +157,15 @@ func TestAtomicWrite(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		err = outFile.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 		if err := os.Remove(outFile.Name()); err != nil {
 			t.Fatal(err)
 		}
 
-		if err := AtomicWrite(outFile.Name(), true, nil, 0644, true); err != nil {
+		if err := AtomicWrite(outFile.Name(), true, nil, FilePermsInput{Mode: 0644}, true); err != nil {
 			t.Fatal(err)
 		}
 
@@ -175,6 +192,9 @@ func TestAtomicWrite(t *testing.T) {
 		if _, err := outFile.Write([]byte("first")); err != nil {
 			t.Fatal(err)
 		}
+		if err := outFile.Close(); err != nil {
+			t.Fatal(err)
+		}
 
 		contains := func(filename, content string) {
 			f, err := ioutil.ReadFile(filename + ".bak")
@@ -186,13 +206,13 @@ func TestAtomicWrite(t *testing.T) {
 			}
 		}
 
-		err = AtomicWrite(outFile.Name(), true, []byte("second"), 0644, true)
+		err = AtomicWrite(outFile.Name(), true, []byte("second"), FilePermsInput{Mode: 0644}, true)
 		if err != nil {
 			t.Fatal(err)
 		}
 		contains(outFile.Name(), "first")
 
-		err = AtomicWrite(outFile.Name(), true, []byte("third"), 0644, true)
+		err = AtomicWrite(outFile.Name(), true, []byte("third"), FilePermsInput{Mode: 0644}, true)
 		if err != nil {
 			t.Fatal(err)
 		}

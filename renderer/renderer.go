@@ -13,9 +13,9 @@ import (
 )
 
 const (
-	// DefaultFilePerms are the default file permissions for files rendered onto
+	// DefaultFileMode are the default file permissions for files rendered onto
 	// disk when a specific file permission has not already been specified.
-	DefaultFilePerms = 0644
+	DefaultFileMode = 0644
 )
 
 var (
@@ -35,7 +35,13 @@ type RenderInput struct {
 	Dry            bool
 	DryStream      io.Writer
 	Path           string
-	Perms          os.FileMode
+	Perms          FilePermsInput
+}
+
+type FilePermsInput struct {
+	User  string
+	Group string
+	Mode  os.FileMode
 }
 
 // RenderResult is returned and stored. It contains the status of the render
@@ -107,7 +113,7 @@ func Render(i *RenderInput) (*RenderResult, error) {
 // Please note that this is only atomic on POSIX systems. It is not atomic on
 // Windows and it is impossible to rename atomically on Windows. For more on
 // this see: https://github.com/golang/go/issues/22397#issuecomment-498856679
-func AtomicWrite(path string, createDestDirs bool, contents []byte, perms os.FileMode, backup bool) error {
+func AtomicWrite(path string, createDestDirs bool, contents []byte, permInput FilePermsInput, backup bool) error {
 	if path == "" {
 		return ErrMissingDest
 	}
@@ -141,31 +147,13 @@ func AtomicWrite(path string, createDestDirs bool, contents []byte, perms os.Fil
 		return err
 	}
 
+
 	// If the user did not explicitly set permissions, attempt to lookup the
-	// current permissions on the file. If the file does not exist, fall back to
-	// the default. Otherwise, inherit the current permissions.
-	var existingPerms os.FileMode = DefaultFilePerms
-	currentInfo, err := os.Stat(path)
+	// current permissions on the file and inherit them. If the file does not exist, fall back to
+	// the default.
+	err = preserveFilePermissions(f.Name(), path, permInput, FilePermsInput{Mode: DefaultFileMode})
 	if err != nil {
-		if !os.IsNotExist(err) {
-			return err
-		}
-	} else {
-		existingPerms = currentInfo.Mode()
-
-		// The file exists, so try to preserve the ownership as well.
-		if err := preserveFilePermissions(f.Name(), currentInfo); err != nil {
-			log.Printf("[WARN] (runner) could not preserve file permissions for %q: %v",
-				f.Name(), err)
-		}
-	}
-
-	if perms == 0 {
-		perms = existingPerms
-	}
-
-	if err := os.Chmod(f.Name(), perms); err != nil {
-		return err
+		return errors.Wrap(err, "error preserving or setting file permissions")
 	}
 
 	// If we got this far, it means we are about to save the file. Copy the

@@ -24,8 +24,8 @@ var (
 )
 
 // Template is the internal representation of an individual template to process.
-// The template retains the relationship between it's contents and is
-// responsible for it's own execution.
+// The template retains the relationship between its contents and is
+// responsible for its own execution.
 type Template struct {
 	// contents is the string contents for the template. It is either given
 	// during template creation or read from disk when initialized.

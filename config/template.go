@@ -63,6 +63,8 @@ type TemplateConfig struct {
 	// disk. This is useful for when files contain sensitive information, such as
 	// secrets from Vault.
 	Perms *os.FileMode `mapstructure:"perms"`
+	User  *string      `mapstructure:"user"`
+	Group *string      `mapstructure:"group"`
 
 	// Source is the path on disk to the template contents to evaluate. Either
 	// this or Contents should be specified, but not both.
